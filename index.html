@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Credentials Dashboard</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #121212;
+      color: #fff;
+      font-family: 'Roboto', sans-serif;
+    }
+    .navbar {
+      background-color: #1f1f1f;
+    }
+    .card-header, .card-footer {
+      background-color: #222;
+    }
+    .search-bar {
+      width: 100%;
+      margin-bottom: 2rem;
+    }
+    .device-card {
+      margin-bottom: 1rem;
+    }
+    .pagination {
+      justify-content: center;
+    }
+    .page-item.active .page-link, .page-link:hover {
+      z-index: 3;
+      color: #fff;
+      background-color: #007bff;
+      border-color: #007bff;
+    }
+    .page-link {
+      color: #007bff;
+    }
+    .card {
+      background-color: #333;
+    }
+    /* Customize the card titles to match your image style */
+    .card-header {
+      color: #fff;
+      background-color: #1f1f1f;
+      border-bottom: 3px solid #007bff;
+    }
+    /* Progress bar colors */
+    .progress {
+      height: 20px;
+      background-color: #c4c4c4;
+    }
+    .progress-bar {
+      background-color: #007bff;
+    }
+    .progress-bar.bg-medium {
+      background-color: #ffc107;
+    }
+    .progress-bar.bg-hard {
+      background-color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="container my-3">
+    <div class="row">
+      <div class="col-12">
+        <input type="text" id="searchInput" onkeyup="searchDevices()" placeholder="Search for devices.." class="form-control search-bar">
+      </div>
+    </div>
+    <div class="row" id="devicesGrid">
+      <!-- Devices will be populated here by JavaScript -->
+    </div>
+    <nav aria-label="Page navigation example">
+      <ul class="pagination">
+        <!-- Pagination buttons will be populated here by JavaScript -->
+      </ul>
+    </nav>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+<script>
+  let devices = [];
+  let filteredDevices = [];
+  const itemsPerPage = 10;
+  let currentPage = 1;
+
+  // Parse the CSV data
+  function parseCSVData() {
+    Papa.parse('DefaultCreds-Cheat-Sheet.csv', {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results) {
+        devices = results.data;
+        filteredDevices = devices.slice(); // Create a copy for filtering
+        renderPage(1);
+      }
+    });
+  }
+
+  // Update the current page and render
+  function renderPage(page) {
+    currentPage = page;
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageItems = filteredDevices.slice(startIndex, endIndex);
+    populateDevices(pageItems);
+    renderPagination();
+  }
+
+  // Create the device cards on the page
+  function populateDevices(pageItems) {
+    const devicesGrid = document.getElementById('devicesGrid');
+    devicesGrid.innerHTML = '';
+    pageItems.forEach(device => {
+      const cardHtml = `
+        <div class="col-md-4 device-card">
+          <div class="card bg-dark">
+            <div class="card-header">${device.productvendor}</div>
+            <div class="card-body">
+              <p>Username: ${device.username}</p>
+              <p>Password: ${device.password || 'N/A'}</p>
+            </div>
+          </div>
+        </div>
+      `;
+      devicesGrid.innerHTML += cardHtml;
+    });
+  }
+
+  // Create the pagination controls
+  function renderPagination() {
+    const paginationUl = document.querySelector('.pagination');
+    paginationUl.innerHTML = '';
+    const totalPages = Math.ceil(filteredDevices.length / itemsPerPage);
+
+    // Calculate pages to show
+    const pagesToShow = Math.min(5, totalPages);
+    let startPage = Math.max(1, currentPage - 2);
+    if (startPage + pagesToShow > totalPages) {
+      startPage = totalPages - pagesToShow + 1;
+    }
+
+    // Previous button
+    if (currentPage > 1) {
+      paginationUl.appendChild(createPaginationButton(currentPage - 1, 'Previous'));
+    }
+
+    // Page numbers
+    for (let i = 0; i < pagesToShow; i++) {
+      const pageNumber = startPage + i;
+      const pageButton = createPaginationButton(pageNumber, pageNumber);
+      if (pageNumber === currentPage) {
+        pageButton.classList.add('active');
+      }
+      paginationUl.appendChild(pageButton);
+    }
+
+    // Next button
+    if (currentPage < totalPages) {
+      paginationUl.appendChild(createPaginationButton(currentPage + 1, 'Next'));
+    }
+  }
+
+  // Helper function to create pagination button
+  function createPaginationButton(page, text) {
+    const pageItem = document.createElement('li');
+    pageItem.className = 'page-item';
+    const pageLink = document.createElement('a');
+    pageLink.className = 'page-link';
+    pageLink.href = '#';
+    pageLink.innerText = text;
+    pageLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      renderPage(page);
+    });
+    pageItem.appendChild(pageLink);
+    return pageItem;
+  }
+
+  // Filter devices based on search query
+  function searchDevices() {
+    const searchInput = document.getElementById('searchInput').value.toLowerCase();
+    filteredDevices = devices.filter(device => {
+      return device.productvendor.toLowerCase().includes(searchInput) ||
+             device.username.toLowerCase().includes(searchInput) ||
+             (device.password && device.password.toLowerCase().includes(searchInput));
+    });
+    renderPage(1);
+  }
+
+  // Initialize the page with data on load
+  window.onload = parseCSVData;
+</script>
+
+</body>
+</html>
